@@ -593,7 +593,7 @@ const hmHeight = 620 - hmMargin.top  - hmMargin.bottom;
 
 const hmXScale = d3.scaleBand().domain(hmSortedSports).range([0, hmWidth]).padding(0.05);
 const hmYScale = d3.scaleBand().domain(hmSortedTeams).range([0, hmHeight]).padding(0.05);
-const hmColorScale = d3.scaleSequential().interpolator(d3.interpolatePurples).domain([0, 1]);
+const hmColorScale = d3.scaleSequential().interpolator(d3.interpolateBlues).domain([0, 1]);
 
 // ── HM-8. SVG ─────────────────────────────────────────────────────────────────
 const hmSvg = d3.select("#heatmap-container").append("svg")
