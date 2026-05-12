@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head class="banner">
+    <link rel="stylesheet" href="./style.css">
+    <script type="module" src="./index.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/zero-md@3?register"></script>
+    <link rel="icon" type="image/png" href="./favicon.png">
+    <title>Visualization Exercise</title>
+</head>
+
+<body class="content">
+<main>
+    <h2>Assignment 2</h2>
+    <!-- create your svg and div containers for visualization here -->
+    
+
+    <section>
+        <h3>Introduction</h3>
+        <div>
+
+            <p>
+                In this assignment, you will apply your knowledge about multi-attribute data visualizations and
+                practice implementing interaction techniques (manipulation, faceting, reducing)
+                to create an interactive coordinated multi-view.
+            </p>
+
+            <p>
+                To give you some freedom in your design and allow you to apply your visualization knowledge
+                from the lectures, the task will only define
+                affordances. You will yourself decide which way to apply them. Please, be able to
+                defend your choices in visualization terms.
+            </p>
+        </div>
+    </section>
+
+    <section>
+        <div class="task">
+            <h3>Task</h3>
+            <p>
+                Design and implement an interactive, coordinated multi-view about the winter seasons in the Olympic athletes dataset 
+                in <b>"data/athlete_events.csv"</b>.
+                The interactive visualizations should work towards answering the following questions:
+            </p>
+            <ol>
+                <li>Does an athlete need to have certain bodily attributes (like height and weight) to be successful in certain sports?</li>
+                <li>Are there sports that are dominated by certain teams?</li>
+                <li>Are certain sports more popular for men or women in certain teams?</li>
+            </ol>
+
+            <p>Hints: Success can be measured by the number of medals won. Beware, that the number of medals that could be won is not the same for all sports.</p>
+        </div>
+
+
+    </section>
+
+    <section>
+        <div class="task">
+            <h3>Affordances</h3>
+            <p>
+                The interactive, coordinated multi-view should have the following features:
+            </p>
+            <ol>
+                <li>
+                    At least one heatmap and one scatter plot (30%).
+                </li>
+                <li>
+                    At least three interaction techniques (50%):
+                    <ol>
+                        <li>At least one manipulation technique</li>
+                        <li>At least one faceting technique</li>
+                        <li>At least one reducing technique</li>
+                    </ol>
+                </li>
+            </ol>
+
+            <p>
+                You are <b>not</b> allowed to use html control elements like checkboxes, sliders, or select boxes to
+                trigger interactions.
+                All interactions should be designed using visual elements of your charts.
+            </p>
+            <p>
+                You may create additional svgs to accommodate your different visualizations.
+            </p>
+
+            <p>
+                <i>Hint: We didn't cover many kinds of interactions, yet. In the learning models, you can learn about
+                    click, mouse enter, mouse leave and custom events. You can apply your skills from the module to implement the interactions.
+                </i>
+            </p>
+
+            <p>
+                Please, describe and defend your visualization and interaction design in the <b>"design_choices.md"</b>
+                (20%).
+            </p>
+        </div>
+    </section>
+
+
+    
+    
+    <section>
+        <zero-md src="design_choices.md">
+            <template>
+                <link rel="stylesheet" href="./style.css"/>
+            </template>
+        </zero-md>
+    </section>
+
+</main>
+</body>
+
+
+</html>
