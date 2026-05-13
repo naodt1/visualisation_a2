@@ -2,7 +2,7 @@ import * as d3 from "d3";
 
 // ── Load & filter for Winter season ─────────────────────────────────────────
 const athletes = await d3.csv("data/athlete_events.csv", d3.autoType)
-	.then(rows => rows.filter(d => d.Season === "Winter" && d.Sport !== "Alpinism"));
+	.then(rows => rows.filter(d => d.Season === "Winter" && d.Sport !== "Alpinism" && d.Sport !== "Military Ski Patrol"));
 
 const city_country = await d3.json("data/city_to_country.json");
 console.log(athletes);
@@ -53,9 +53,8 @@ section.id = "scatter-section";
 section.innerHTML = `
   <h3>Q1 · Do bodily attributes affect success?</h3>
   <p class="scatter-subtitle">
-    Each dot = one athlete in one sport &nbsp;·&nbsp;
-    Dot size = medals won &nbsp;·&nbsp;
-    Colour = sport &nbsp;·&nbsp;
+    Each dot = one athlete's medals of a single type &nbsp;·&nbsp;
+    Colour = medal type &nbsp;·&nbsp;
     <strong>Click sport legend</strong> to highlight &nbsp;·&nbsp;
     <strong>Drag</strong> to zoom &nbsp;·&nbsp;
     <strong>Dbl-click</strong> to reset
@@ -72,11 +71,16 @@ for (const d of athletes) {
 	if (d.Height < 130 || d.Height > 230) continue;             // filter implausible heights
 	if (d.Medal == null) continue;                               // drop rows with no medal
 	const sport = d.Sport;
-	const key = `${d.ID}-${sport}`;
+	const medal = d.Medal;
+	const key = `${d.ID}-${sport}-${medal}`;
 	if (!byKey.has(key)) {
-		byKey.set(key, { name: d.Name, sex: d.Sex, height: d.Height, weight: d.Weight, sport: sport, noc: d.NOC, medals: 0 });
+		byKey.set(key, { name: d.Name, sex: d.Sex, height: d.Height, weight: d.Weight, sport: sport, noc: d.NOC, medals: 0, medal: medal, gold: 0, silver: 0, bronze: 0 });
 	}
-	byKey.get(key).medals += 1;
+	const athleteObj = byKey.get(key);
+	athleteObj.medals += 1;
+	if (medal === "Gold") athleteObj.gold += 1;
+	else if (medal === "Silver") athleteObj.silver += 1;
+	else if (medal === "Bronze") athleteObj.bronze += 1;
 }
 const data = Array.from(byKey.values());
 
@@ -100,10 +104,6 @@ const yScale = d3.scaleLinear().domain(yExt).nice().range([IH, 0]);
 const colorScale = d3.scaleOrdinal().domain(topSports)
 	.range(d3.schemeTableau10.concat(d3.schemePastel1));
 
-const rScale = d3.scaleSqrt()
-	.domain([0, d3.max(data, d => d.medals)])
-	.range([3, 12]);
-
 // Container for side-by-side plots
 const scatterContainer = d3.select(section).append("div")
 	.style("display", "flex")
@@ -114,6 +114,14 @@ const scatterContainer = d3.select(section).append("div")
 // Tooltip
 const tooltip = d3.select("body").append("div").attr("id", "scatter-tooltip");
 let selectedSport = null;
+let selectedMedal = null;
+
+const getDotOpacity = (d) => {
+    if (selectedSport && d.sport !== selectedSport) return 0.1;
+    if (selectedMedal && d.medal !== selectedMedal) return 0.1;
+    if (selectedSport || selectedMedal) return 0.9;
+    return 0.75;
+};
 
 const plots = [];
 
@@ -161,13 +169,17 @@ function buildScatter(container, title, plotData) {
 	// Dots
 	const dotsG = g.append("g").attr("class", "dots").attr("clip-path", `url(#${clipId})`);
 	
+	const medalColor = (m) => m === "Gold" ? "#f5c518" : m === "Silver" ? "#3b82f6" : "#9333ea";
+	const medalOffsetX = (m) => m === "Gold" ? -3 : m === "Bronze" ? 3 : 0;
+	const medalOffsetY = (m) => m === "Gold" ? -3 : m === "Bronze" ? 3 : 0;
+
 	const dots = dotsG.selectAll("circle")
 		.data(plotData).join("circle")
-		.attr("cx", d => xScale(d.weight))
-		.attr("cy", d => yScale(d.height))
-		.attr("r", d => rScale(d.medals))
-		.attr("fill", d => colorScale(d.sport))
-		.attr("fill-opacity", 0.65) 
+		.attr("cx", d => xScale(d.weight) + medalOffsetX(d.medal))
+		.attr("cy", d => yScale(d.height) + medalOffsetY(d.medal))
+		.attr("r", 4)
+		.attr("fill", d => medalColor(d.medal))
+		.attr("fill-opacity", 0.75) 
 		.attr("stroke", "rgba(255,255,255,.8)")
 		.attr("stroke-width", 1)
 		.style("cursor", "default");
@@ -177,7 +189,9 @@ function buildScatter(container, title, plotData) {
 				.html(`<strong>${d.name}</strong><br/>
 				       Sport: ${d.sport}<br/>
 				       Height: ${d.height} cm &nbsp;|&nbsp; Weight: ${d.weight} kg<br/>
-				       🏅 Medals: ${d.medals}<br/>
+				       <span style="color:#f5c518; font-weight:bold;">🥇 ${d.gold}</span> &nbsp;&nbsp;
+				       <span style="color:#3b82f6; font-weight:bold;">🥈 ${d.silver}</span> &nbsp;&nbsp;
+				       <span style="color:#9333ea; font-weight:bold;">🥉 ${d.bronze}</span><br/>
 				       NOC: ${d.noc} &nbsp;|&nbsp; Sex: ${d.sex}`)
 				.style("opacity", 1)
 				.style("left", `${event.pageX + 12}px`)
@@ -192,15 +206,15 @@ function buildScatter(container, title, plotData) {
 			d3.select(this)
 				.attr("stroke", "rgba(255,255,255,.8)")
 				.attr("stroke-width", 1)
-				.attr("fill-opacity", selectedSport ? (d.sport === selectedSport ? 0.85 : 0.07) : 0.65);
+				.attr("fill-opacity", getDotOpacity(d));
 		});
 
 	const update = () => {
 		xAxisG.transition().duration(400).call(xAxis);
 		yAxisG.transition().duration(400).call(yAxis);
 		dots.transition().duration(400)
-			.attr("cx", d => xScale(d.weight))
-			.attr("cy", d => yScale(d.height));
+			.attr("cx", d => xScale(d.weight) + medalOffsetX(d.medal))
+			.attr("cy", d => yScale(d.height) + medalOffsetY(d.medal));
 	};
 
 	// Brush
@@ -266,21 +280,17 @@ const legendItems = legendG.selectAll(".legend-item")
 
 legendItems.append("rect").attr("class", "leg-swatch")
 	.attr("width", 13).attr("height", 13).attr("rx", 2)
-	.attr("fill", d => colorScale(d));
+	.attr("fill", "#bbb");
 
 legendItems.append("text").attr("x", 19).attr("y", 11).text(d => d).style("font-size", "11px");
 
 legendItems.on("click", function (_, sport) {
 	if (selectedSport === sport) {
 		selectedSport = null;
-		plots.forEach(p => p.dots.attr("fill-opacity", 0.65));
 		legendItems.select(".leg-swatch").attr("stroke", "none").attr("stroke-width", 0);
 		d3.selectAll(".hm-axis-x text").style("font-weight", "normal").style("fill", null);
 	} else {
 		selectedSport = sport;
-		plots.forEach(p => {
-			p.dots.attr("fill-opacity", d => d.sport === sport ? 0.85 : 0.07);
-		});
 		legendItems.select(".leg-swatch")
 			.attr("stroke", s => s === sport ? "#333" : "none")
 			.attr("stroke-width", s => s === sport ? 2 : 0);
@@ -288,28 +298,44 @@ legendItems.on("click", function (_, sport) {
 			.style("font-weight", s => s === sport ? "bold" : "normal")
 			.style("fill", s => s === sport ? "#000" : null);
 	}
+	plots.forEach(p => p.dots.attr("fill-opacity", d => getDotOpacity(d)));
 });
 
-// Medal size legend
-const sizeLegSvg = legendContainer.append("svg")
-	.attr("width", 200)
-	.attr("height", 80)
+// Trophy Type legend
+const trophyLegSvg = legendContainer.append("svg")
+	.attr("width", 160)
+	.attr("height", 110)
 	.style("overflow", "visible")
 	.attr("id", "scatter-svg");
 
-const sizeG = sizeLegSvg.append("g");
-sizeG.append("text").attr("class", "legend-title").attr("y", 12).text("🏅 Medals won");
+const trophyG = trophyLegSvg.append("g");
+trophyG.append("text").attr("class", "legend-title").attr("y", 12).text("Trophy Type (click)");
 
-[1, 2, 4, 7].forEach((v, i) => {
-	sizeG.append("circle")
-		.attr("cx", 20 + i * 40).attr("cy", 40).attr("r", rScale(v))
-		.attr("fill", "#f5c518").attr("fill-opacity", .6)
-		.attr("stroke", "#fff").attr("stroke-width", 1);
-	sizeG.append("text")
-		.attr("x", 20 + i * 40).attr("y", 65)
-		.attr("text-anchor", "middle")
-		.attr("font-size", "11px").attr("fill", "#555")
-		.text(v === 7 ? "7+" : String(v));
+const trophyTypes = ["Gold", "Silver", "Bronze"];
+const trophyColors = {"Gold": "#f5c518", "Silver": "#3b82f6", "Bronze": "#9333ea"};
+
+const trophyItems = trophyG.selectAll(".trophy-item")
+	.data(trophyTypes).join("g")
+	.attr("class", "legend-item")
+	.attr("transform", (_, i) => `translate(0, ${i * 22 + 26})`);
+
+trophyItems.append("rect").attr("class", "trophy-swatch")
+	.attr("width", 13).attr("height", 13).attr("rx", 2)
+	.attr("fill", d => trophyColors[d]);
+
+trophyItems.append("text").attr("x", 19).attr("y", 11).text(d => d).style("font-size", "11px");
+
+trophyItems.on("click", function(_, medal) {
+	if (selectedMedal === medal) {
+		selectedMedal = null;
+		trophyItems.select(".trophy-swatch").attr("stroke", "none").attr("stroke-width", 0);
+	} else {
+		selectedMedal = medal;
+		trophyItems.select(".trophy-swatch")
+			.attr("stroke", m => m === medal ? "#333" : "none")
+			.attr("stroke-width", m => m === medal ? 2 : 0);
+	}
+	plots.forEach(p => p.dots.attr("fill-opacity", d => getDotOpacity(d)));
 });
 
 // ════════════════════════════════════════════════════════════════════════════════
@@ -364,21 +390,24 @@ const tSvg = d3.select("#sb-teams").append("svg")
 	.attr("height", tH + tMargin.top + tMargin.bottom)
 	.append("g").attr("transform", `translate(${tMargin.left},${tMargin.top})`);
 
-tSvg.append("text").attr("x", -20).attr("y", -15).style("font-weight", "600").style("font-size", "14px").text("Top 15 Teams");
+tSvg.append("text").attr("x", -20).attr("y", -15).style("font-weight", "600").style("font-size", "14px").text("Filter by Team");
 
-const tYScale = d3.scaleBand().domain(top15Teams).range([0, tH]).padding(0.2);
+const top16Teams = ["All Teams", ...top15Teams];
+const tYScale = d3.scaleBand().domain(top16Teams).range([0, tH]).padding(0.2);
 const tXScale = d3.scaleLinear().domain([0, teamCounts[0][1]]).range([0, tW]);
 
-let activeTeam = "USA"; // default
+let activeTeam = "All Teams"; // default
+
+const teamDataWithAll = [["All Teams", 0], ...teamCounts.slice(0, 15)];
 
 const tBars = tSvg.selectAll(".team-bar")
-	.data(teamCounts.slice(0, 15)).join("g")
+	.data(teamDataWithAll).join("g")
 	.attr("class", "team-bar")
 	.attr("transform", d => `translate(0,${tYScale(d[0])})`)
 	.style("cursor", "pointer");
 
 tBars.append("rect")
-	.attr("width", d => Math.max(2, tXScale(d[1])))
+	.attr("width", d => d[0] === "All Teams" ? tW : Math.max(2, tXScale(d[1])))
 	.attr("height", tYScale.bandwidth())
 	.attr("fill", d => d[0] === activeTeam ? "#667eea" : "#ddd")
 	.attr("rx", 2);
@@ -416,13 +445,13 @@ const stackG = sSvg.append("g");
 
 function updateStackedChart(team) {
 	activeTeam = team;
-	sTitle.text(`Gender Split in Sports for ${team}`);
+	sTitle.text(team === "All Teams" ? "Gender Split in Sports for All Teams" : `Gender Split in Sports for ${team}`);
 	
 	// Update team bars
 	tBars.select("rect").transition().duration(200).attr("fill", d => d[0] === activeTeam ? "#667eea" : "#ddd");
 
 	// Filter data
-	const tData = partData.filter(d => d.noc === team);
+	const tData = team === "All Teams" ? partData : partData.filter(d => d.noc === team);
 	
 	// Aggregate by sport -> M/F
 	const aggregated = allSports.map(sport => {
@@ -474,7 +503,7 @@ function updateStackedChart(team) {
 }
 
 tBars.on("click", (_, d) => updateStackedChart(d[0]));
-updateStackedChart("USA");
+updateStackedChart("All Teams");
 
 // Legend for Gender
 const gLeg = sSvg.append("g").attr("transform", `translate(${sW + 20}, 20)`);
@@ -520,17 +549,16 @@ hmSection.innerHTML = `
   <p class="heatmap-subtitle">
     Top 30 NOCs by total medals &nbsp;·&nbsp;
     Colour = share of that sport's all-time best (normalised per sport) &nbsp;·&nbsp;
-    <strong>Hover</strong> for detail
+    <strong>Hover</strong> for detail &nbsp;·&nbsp;
+    <strong>Click sport on x-axis</strong> to filter scatterplot
   </p>
   <div id="heatmap-container"></div>
 `;
 // Insert after the scatter section
 section.insertAdjacentElement("afterend", hmSection);
 
-// ── HM-3. Clean data — remap "Military Ski Patrol" → "Biathlon" ──────────────
-const hmAthletes = athletes.map(d =>
-	d.Sport === "Military Ski Patrol" ? { ...d, Sport: "Biathlon" } : d
-);
+// ── HM-3. Clean data ─────────────────────────────────────────────────────────
+const hmAthletes = athletes;
 
 // ── HM-4. Build medal-count rollup ───────────────────────────────────────────
 const hmTeamMedalCounts = d3.rollups(
@@ -651,14 +679,10 @@ hmXAxis.selectAll("text")
 	.on("click", function(_, sport) {
 		if (selectedSport === sport) {
 			selectedSport = null;
-			plots.forEach(p => p.dots.attr("fill-opacity", 0.65));
 			legendItems.select(".leg-swatch").attr("stroke", "none").attr("stroke-width", 0);
 			hmXAxis.selectAll("text").style("font-weight", "normal").style("fill", null);
 		} else {
 			selectedSport = sport;
-			plots.forEach(p => {
-				p.dots.attr("fill-opacity", d => d.sport === sport ? 0.85 : 0.07);
-			});
 			legendItems.select(".leg-swatch")
 				.attr("stroke", s => s === sport ? "#333" : "none")
 				.attr("stroke-width", s => s === sport ? 2 : 0);
@@ -666,6 +690,7 @@ hmXAxis.selectAll("text")
 				.style("font-weight", s => s === sport ? "bold" : "normal")
 				.style("fill", s => s === sport ? "#000" : null);
 		}
+		plots.forEach(p => p.dots.attr("fill-opacity", d => getDotOpacity(d)));
 	});
 
 hmSvg.append("g").attr("class", "hm-axis").call(d3.axisLeft(hmYScale));
