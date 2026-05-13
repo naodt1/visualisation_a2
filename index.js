@@ -69,7 +69,7 @@ for (const d of athletes) {
 	if (d.Height == null || d.Weight == null) continue;          // drop rows with missing body data
 	if (d.Weight < 40 || d.Weight > 200) continue;              // filter implausible weights
 	if (d.Height < 130 || d.Height > 230) continue;             // filter implausible heights
-	if (d.Medal == null) continue;                               // drop rows with no medal
+	if (!["Gold", "Silver", "Bronze"].includes(d.Medal)) continue; // drop rows with no medal
 	const sport = d.Sport;
 	const medal = d.Medal;
 	const key = `${d.ID}-${sport}-${medal}`;
@@ -562,7 +562,7 @@ const hmAthletes = athletes;
 
 // ── HM-4. Build medal-count rollup ───────────────────────────────────────────
 const hmTeamMedalCounts = d3.rollups(
-	hmAthletes.filter(d => d.Medal !== null),
+	hmAthletes.filter(d => ["Gold", "Silver", "Bronze"].includes(d.Medal)),
 	v => countMedals(v),
 	d => d.NOC
 );
@@ -581,7 +581,7 @@ const hmData = [];
 hmTopTeams.forEach(team => {
 	hmDistinctSports.forEach(sport => {
 		const cellRows = hmAthletes.filter(
-			d => d.NOC === team && d.Sport === sport && d.Medal !== null
+			d => d.NOC === team && d.Sport === sport && ["Gold", "Silver", "Bronze"].includes(d.Medal)
 		);
 		hmData.push({ team, sport, value: countMedals(cellRows) });
 	});
@@ -589,7 +589,7 @@ hmTopTeams.forEach(team => {
 
 // ── HM-5. Normalise per-sport ─────────────────────────────────────────────────
 const hmGlobalMaxPerSport = d3.rollup(
-	hmAthletes.filter(d => d.Medal !== null),
+	hmAthletes.filter(d => ["Gold", "Silver", "Bronze"].includes(d.Medal)),
 	v => {
 		const nocCounts = d3.rollups(v, g => countMedals(g), d => d.NOC);
 		return d3.max(nocCounts, d => d[1]);
